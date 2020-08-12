@@ -19,11 +19,11 @@ class Summernote extends InputWidget
     /**
      * @var array Default client options
      */
-    private $_defaultClientOptions = [
+    public $defaultClientOptions = [
         'height' => 200,
         'codemirror' => [
             'theme' => 'monokai',
-        ],
+        ]
     ];
 
     /**
@@ -109,7 +109,7 @@ class Summernote extends InputWidget
         }
 
         $this->options = ArrayHelper::merge($this->_defaultOptions, $this->options);
-        $this->clientOptions = ArrayHelper::merge($this->_defaultClientOptions, $this->clientOptions);
+        $this->clientOptions = ArrayHelper::merge($this->defaultClientOptions, $this->clientOptions);
 
         parent::init();
     }
