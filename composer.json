@@ -1,5 +1,5 @@
 {
-    "name": "marqu3s/yii2-summernote",
+    "name": "simialbi/yii2-summernote",
     "description": "Yii2 Summernote widget. Super simple WYSIWYG editor on Bootstrap",
     "type": "yii2-extension",
     "keywords": [
@@ -8,7 +8,7 @@
         "widget",
         "wysiwyg"
     ],
-    "homepage": "https://github.com/marqu3s/yii2-summernote",
+    "homepage": "https://github.com/simialbi/yii2-summernote",
     "time": "2016-01-15",
     "license": "MIT",
     "authors": [
@@ -22,20 +22,35 @@
             "name": "Joao Marques",
             "email": "joao@jjmf.com",
             "role": "Developer"
+        },
+        {
+            "name": "simialbi",
+            "email": "simi.albi@outlook.com",
+            "role": "Developer"
         }
     ],
     "support": {
-        "issues": "https://github.com/zelenin/yii2-summernote-widget/issues",
-        "source": "https://github.com/marqu3s/yii2-summernote"
+        "issues": "https://github.com/simialbi/yii2-summernote/issues",
+        "source": "https://github.com/simialbi/yii2-summernote"
     },
     "require": {
-        "yiisoft/yii2": "~2",
+        "yiisoft/yii2": "^2.0.20",
         "bower-asset/codemirror": "@stable",
         "bower-asset/summernote": "0.*"
     },
+    "require-dev": {
+        "aws/aws-sdk-php": "^3.148.0",
+        "yiisoft/yii2-coding-standards": "~2.0"
+    },
+    "replace": {
+        "marqu3s/yii2-summernote": "^1.0.0"
+    },
+    "suggest": {
+        "aws/aws-sdk-php": "Needed if you like to use upload on Amazon S3"
+    },
     "autoload": {
         "psr-4": {
-            "marqu3s\\summernote\\": ""
+            "marqu3s\\summernote\\": "src"
         }
     },
     "extra": {

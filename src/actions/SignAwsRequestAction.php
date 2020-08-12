@@ -6,13 +6,18 @@
  * Time: 08:42
  */
 
-namespace common\actions;
+namespace marqu3s\summernote\actions;
 
 use Aws\S3\PostObjectV4;
 use Aws\S3\S3Client;
 use Aws\Sdk;
 use Yii;
 use yii\base\Action;
+use yii\helpers\ArrayHelper;
+use yii\helpers\FileHelper;
+use yii\helpers\Json;
+use yii\web\Response;
+use yii\web\ServerErrorHttpException;
 
 /**
  * Class SignAwsRequestAction
@@ -63,37 +68,39 @@ class SignAwsRequestAction extends Action
     public $expectedMaxSize;
 
     /**
-     * @inheritdoc
+     * Runs the sign action
+     * @throws ServerErrorHttpException
+     * @throws \yii\base\InvalidConfigException
+     * @throws \Exception
      */
     public function run()
     {
-        $method = Yii::$app->request->getMethod() ;
+        $request = Yii::$app->request;
 
-        # This first conditional will only ever evaluate to true in a
-        # CORS environment
-        if ($method == 'OPTIONS') {
+        if ($request->method === 'OPTIONS') {
+            # This first conditional will only ever evaluate to true in a
+            # CORS environment
             $this->handlePreflight();
-        }
-
-        # This second conditional will only ever evaluate to true if
-        # the delete file feature is enabled.
-        elseif ($method == 'DELETE') {
+        } elseif ($request->method === 'DELETE') {
+            # This second conditional will only ever evaluate to true if
+            # the delete file feature is enabled.
             $this->handleCorsRequest(); // only needed in a CORS environment
             $this->deleteObject();
-        }
-
-        # This is all you really need if not using the delete file feature
-        # and not working in a CORS environment
-        elseif ($method == 'POST') {
+        } elseif ($request->method === 'POST') {
+            # This is all you really need if not using the delete file feature
+            # and not working in a CORS environment
             $this->handleCorsRequest();
 
             # Assumes the successEndpoint has a parameter of "success" associated with it,
             # to allow the server to differentiate between a successEndpoint request
             # and other POST requests (all requests are sent to the same endpoint in this example).
             # This condition is not needed if you don't require a callback on upload success.
-            if (isset($_REQUEST["success"])) {
+            $success = $request->getBodyParam('success', $request->getQueryParam('success', false));
+            $method = $request->getBodyParam('_method', $request->getQueryParam('_method'));
+
+            if ($success) {
                 $this->verifyFileInS3($this->shouldIncludeThumbnail());
-            } elseif (isset($_REQUEST["_method"])) {
+            } elseif ($method) {
                 $this->deleteObject();
             } else {
                 $this->signRequest();
@@ -111,20 +118,9 @@ class SignAwsRequestAction extends Action
      */
     protected function getRequestMethod()
     {
-        global $HTTP_RAW_POST_DATA;
+        $method = Yii::$app->request->getBodyParam('_method', Yii::$app->request->getQueryParam('_method'));
 
-        # This should only evaluate to true if the Content-Type is undefined
-        # or unrecognized, such as when XDomainRequest has been used to
-        # send the request.
-        if (isset($HTTP_RAW_POST_DATA)) {
-            parse_str($HTTP_RAW_POST_DATA, $_POST);
-        }
-
-        if (isset($_REQUEST['_method'])) {
-            return $_REQUEST['_method'];
-        }
-
-        return $_SERVER['REQUEST_METHOD'];
+        return $method ? $method : Yii::$app->request->method;
     }
 
     /**
@@ -133,8 +129,8 @@ class SignAwsRequestAction extends Action
     protected function handlePreflight()
     {
         $this->handleCorsRequest();
-        header('Access-Control-Allow-Methods: POST');
-        header('Access-Control-Allow-Headers: Content-Type');
+        Yii::$app->response->headers->set('Access-Control-Allow-Methods', 'POST');
+        Yii::$app->response->headers->set('Access-Control-Allow-Headers', 'Content-Type');
     }
 
     /**
@@ -143,7 +139,7 @@ class SignAwsRequestAction extends Action
     protected function handleCorsRequest()
     {
         // If you are relying on CORS, you will need to adjust the allowed domain here.
-        header('Access-Control-Allow-Origin: *');
+        Yii::$app->response->headers->set('Access-Control-Allow-Origin', '*');
         //header('Access-Control-Allow-Origin: http://joao-portal2.riic.local');
     }
 
@@ -163,9 +159,8 @@ class SignAwsRequestAction extends Action
         ];
 
         $sdk = new Sdk($sharedConfig);
-        $s3 = $sdk->createS3();
 
-        return $s3;
+        return $sdk->createS3();
     }
 
     /**
@@ -173,23 +168,28 @@ class SignAwsRequestAction extends Action
      */
     protected function deleteObject()
     {
+        $bucket = Yii::$app->request->getBodyParam('bucket', Yii::$app->request->getQueryParam('bucket'));
+        $key = Yii::$app->request->getBodyParam('key', Yii::$app->request->getQueryParam('key'));
+
         $this->getS3Client()->deleteObject([
-            'Bucket' => $_REQUEST['bucket'],
-            'Key' => $_REQUEST['key'],
+            'Bucket' => $bucket,
+            'Key' => $key,
         ]);
     }
 
     /**
      * Signs a request.
+     * @throws \Exception
      */
     protected function signRequest()
     {
-        header('Content-Type: application/json');
-        $responseBody = file_get_contents('php://input');
-        $contentAsObject = json_decode($responseBody, true);
-        $jsonContent = json_encode($contentAsObject);
-        if (!empty($contentAsObject["headers"])) {
-            $this->signRestRequest($contentAsObject["headers"]);
+        Yii::$app->response->format = Response::FORMAT_JSON;
+        $responseBody = Yii::$app->request->rawBody;
+        $contentAsObject = Json::decode($responseBody);
+        $jsonContent = Json::encode($contentAsObject);
+
+        if (!empty($contentAsObject['headers'])) {
+            $this->signRestRequest($contentAsObject['headers']);
         } else {
             $this->signPolicy($jsonContent);
         }
@@ -200,16 +200,17 @@ class SignAwsRequestAction extends Action
      */
     protected function signRestRequest($headersStr)
     {
-        $version = isset($_REQUEST["v4"]) ? 4 : 2;
+        $v4 = Yii::$app->request->getBodyParam('v4', Yii::$app->request->getQueryParam('v4', false));
+        $version = $v4 ? 4 : 2;
         if ($this->isValidRestRequest($headersStr, $version)) {
             if ($version == 4) {
                 $response = ['signature' => $this->signV4RestRequest($headersStr)];
             } else {
                 $response = ['signature' => $this->sign($headersStr)];
             }
-            echo json_encode($response);
+            echo Json::encode($response);
         } else {
-            echo json_encode(["invalid" => true]);
+            echo Json::encode(['invalid' => true]);
         }
     }
 
@@ -222,9 +223,9 @@ class SignAwsRequestAction extends Action
     protected function isValidRestRequest($headersStr, $version)
     {
         if ($version == 2) {
-            $pattern = "/\/$this->expectedBucketName\/.+$/";
+            $pattern = "/\/{$this->expectedBucketName}\/.+$/";
         } else {
-            $pattern = "/host:$this->expectedHostName/";
+            $pattern = "/host:{$this->expectedHostName}/";
         }
         preg_match($pattern, $headersStr, $matches);
 
@@ -233,20 +234,22 @@ class SignAwsRequestAction extends Action
 
     /**
      * @param string $policyStr
+     * @throws \Exception
      */
     protected function signPolicy($policyStr)
     {
-        $policyObj = json_decode($policyStr, true);
+        $v4 = Yii::$app->request->getBodyParam('v4', Yii::$app->request->getQueryParam('v4', false));
+        $policyObj = Json::decode($policyStr, true);
         if ($this->isPolicyValid($policyObj)) {
             $encodedPolicy = base64_encode($policyStr);
-            if (isset($_REQUEST["v4"])) {
+            if ($v4) {
                 $response = $this->signV4Policy($policyObj);
             } else {
                 $response = ['policy' => $encodedPolicy, 'signature' => $this->sign($encodedPolicy)];
             }
-            echo json_encode($response);
+            echo Json::encode($response);
         } else {
-            echo json_encode(["invalid" => true]);
+            echo Json::encode(['invalid' => true]);
         }
     }
 
@@ -257,19 +260,18 @@ class SignAwsRequestAction extends Action
      */
     protected function isPolicyValid($policy)
     {
-        $conditions = $policy["conditions"];
+        $conditions = ArrayHelper::remove($policy, 'conditions', []);
         $bucket = null;
         $parsedMaxSize = null;
-        for ($i = 0; $i < count($conditions); ++$i) {
-            $condition = $conditions[$i];
-            if (isset($condition["bucket"])) {
-                $bucket = $condition["bucket"];
-            } elseif (isset($condition[0]) && $condition[0] == "content-length-range") {
+        foreach ($conditions as $condition) {
+            if (isset($condition['bucket'])) {
+                $bucket = $condition['bucket'];
+            } elseif (isset($condition[0]) && strcasecmp($condition[0], 'content-length-range') === 0) {
                 $parsedMaxSize = $condition[2];
             }
         }
 
-        return $bucket == $this->expectedBucketName && $parsedMaxSize == (string)$this->expectedMaxSize;
+        return $bucket === $this->expectedBucketName && $parsedMaxSize == (string)$this->expectedMaxSize;
     }
 
     /**
@@ -286,17 +288,25 @@ class SignAwsRequestAction extends Action
      * @param array $policyObj
      *
      * @return array
+     * @throws \Exception
      */
     protected function signV4Policy($policyObj)
     {
-        $post = new PostObjectV4($this->getS3Client(), $this->expectedBucketName, [], $policyObj['conditions'], $policyObj['expiration']);
+        $post = new PostObjectV4(
+            $this->getS3Client(),
+            $this->expectedBucketName,
+            [],
+            $policyObj['conditions'],
+            $policyObj['expiration']
+        );
+        $formInputs = $post->getFormInputs();
 
         return [
-            'policy' => $post->getFormInputs()['Policy'],
-            'signature' => $post->getFormInputs()['X-Amz-Signature'],
-            'x_amz_date' => $post->getFormInputs()['X-Amz-Date'],
-            'x_amz_credential' => $post->getFormInputs()['X-Amz-Credential'],
-            'x_amz_algorithm' => $post->getFormInputs()['X-Amz-Algorithm'],
+            'policy' => ArrayHelper::getValue($formInputs, 'Policy'),
+            'signature' => ArrayHelper::getValue($formInputs, 'X-Amz-Signature'),
+            'x_amz_date' => ArrayHelper::getValue($formInputs, 'X-Amz-Date'),
+            'x_amz_credential' => ArrayHelper::getValue($formInputs, 'X-Amz-Credential'),
+            'x_amz_algorithm' => ArrayHelper::getValue($formInputs, 'X-Amz-Algorithm')
         ];
     }
 
@@ -308,10 +318,14 @@ class SignAwsRequestAction extends Action
     protected function signV4RestRequest($rawStringToSign)
     {
 
-        $pattern = "/.+\\n.+\\n(\\d+)\/(.+)\/s3\/aws4_request\\n(.+)/s";
+        $pattern = '/.+\\n.+\\n(\\d+)\/(.+)\/s3\/aws4_request\\n(.+)/s';
         preg_match($pattern, $rawStringToSign, $matches);
         $hashedCanonicalRequest = hash('sha256', $matches[3]);
-        $stringToSign = preg_replace("/^(.+)\/s3\/aws4_request\\n.+$/s", '$1/s3/aws4_request' . "\n" . $hashedCanonicalRequest, $rawStringToSign);
+        $stringToSign = preg_replace(
+            '/^(.+)\/s3\/aws4_request\\n.+$/s',
+            '$1/s3/aws4_request' . "\n" . $hashedCanonicalRequest,
+            $rawStringToSign
+        );
         $dateKey = hash_hmac('sha256', $matches[1], 'AWS4' . $this->clientPrivateKey, true);
         $dateRegionKey = hash_hmac('sha256', $matches[2], $dateKey, true);
         $dateRegionServiceKey = hash_hmac('sha256', 's3', $dateRegionKey, true);
@@ -324,11 +338,12 @@ class SignAwsRequestAction extends Action
      * This is not needed if you don't require a callback on upload success.
      *
      * @param bool $includeThumbnail
+     * @throws ServerErrorHttpException
      */
     protected function verifyFileInS3($includeThumbnail)
     {
-        $bucket = $_REQUEST["bucket"];
-        $key = $_REQUEST["key"];
+        $bucket = Yii::$app->request->getBodyParam('bucket', Yii::$app->request->getQueryParam('bucket'));
+        $key = Yii::$app->request->getBodyParam('key', Yii::$app->request->getQueryParam('key'));
 
         # If utilizing CORS, we return a 200 response with the error message in the body
         # to ensure Fine Uploader can parse the error message in IE9 and IE8,
@@ -336,16 +351,15 @@ class SignAwsRequestAction extends Action
         # does not allow access to the response body for non-success responses.
         if (isset($this->expectedMaxSize) && $this->getObjectSize($bucket, $key) > $this->expectedMaxSize) {
             # You can safely uncomment this next line if you are not depending on CORS
-            header("HTTP/1.0 500 Internal Server Error");
             $this->deleteObject();
-            echo json_encode(["error" => "File is too big!", "preventRetry" => true]);
+            throw new ServerErrorHttpException(Json::encode(['error' => 'File is too big!', 'preventRetry' => true]));
         } else {
             $link = $this->getTempLink($bucket, $key);
-            $response = ["tempLink" => $link];
+            $response = ['tempLink' => $link];
             if ($includeThumbnail) {
-                $response["thumbnailUrl"] = $link;
+                $response['thumbnailUrl'] = $link;
             }
-            echo json_encode($response);
+            echo Json::encode($response);
         }
     }
 
@@ -389,13 +403,21 @@ class SignAwsRequestAction extends Action
      * @param string $filename
      *
      * @return boolean
+     * @throws \yii\base\InvalidConfigException
      */
     protected function isFileViewableImage($filename)
     {
-        $ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
-        $viewableExtensions = ["jpeg", "jpg", "gif", "png"];
+        $mime = FileHelper::getMimeType($filename);
+        $viewableMimes = [
+            'image/jpeg',
+            'image/jpg',
+            'image/bmp',
+            'image/png',
+            'image/gif',
+            'image/webp'
+        ];
 
-        return in_array($ext, $viewableExtensions);
+        return in_array($mime, $viewableMimes);
     }
 
     /**
@@ -405,14 +427,18 @@ class SignAwsRequestAction extends Action
      * a viewable image and only if the browser is not capable of generating a client-side preview.
      *
      * @return boolean
+     * @throws \yii\base\InvalidConfigException
      */
     protected function shouldIncludeThumbnail()
     {
-        $filename = $_REQUEST["name"];
-        $isPreviewCapable = (isset($_REQUEST["isBrowserPreviewCapable"]) && ($_REQUEST["isBrowserPreviewCapable"] == "true")) ? true : false;
+        $filename = Yii::$app->request->getBodyParam('name', Yii::$app->request->getQueryParam('name'));
+        $browserPreviewCapable = Yii::$app->request->getBodyParam(
+            'isBrowserPreviewCapable',
+            Yii::$app->request->getQueryParam('isBrowserPreviewCapable', false)
+        );
+        $isPreviewCapable = $browserPreviewCapable == 'true';
         $isFileViewableImage = $this->isFileViewableImage($filename);
 
         return !$isPreviewCapable && $isFileViewableImage;
     }
-
 }

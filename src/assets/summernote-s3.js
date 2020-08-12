@@ -1,7 +1,5 @@
 /*jshint esnext: true */
-
 const summernoteS3uploader = {
-
     signEndpoint: '',
     bucket: '',
     folder: '',
@@ -86,7 +84,7 @@ const summernoteS3uploader = {
                         contentType: false,
                         processData: false,
                         url: 'https://' + summernoteS3uploader.bucket + '.s3.amazonaws.com/',
-                        success: function(data, textStatus) {
+                        success: function (data, textStatus) {
                             if (textStatus === 'success') {
                                 var url = 'https://' + summernoteS3uploader.bucket + '.s3.amazonaws.com/' + summernoteS3uploader.getFolder() + summernoteS3uploader.getFilenamePrefix() + summernoteS3uploader.fileSlugify(summernoteS3uploader.file.name);
                                 summernoteS3uploader.editor.summernote('insertImage', url);

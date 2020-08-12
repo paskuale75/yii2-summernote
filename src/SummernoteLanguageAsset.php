@@ -2,22 +2,27 @@
 
 namespace marqu3s\summernote;
 
-use Yii;
 use yii\web\AssetBundle;
 
 class SummernoteLanguageAsset extends AssetBundle
 {
-    /** @var string */
+    /**
+     * The Language to load
+     */
     public $language;
-    /** @var string */
+    /**
+     * {@inheritDoc}
+     */
     public $sourcePath = '@bower/summernote/lang';
-    /** @var array */
+    /**
+     * {@inheritDoc}
+     */
     public $depends = [
         'marqu3s\summernote\SummernoteAsset'
     ];
 
     /**
-     * @inheritdoc
+     * {@inheritDoc}
      */
     public function registerAssetFiles($view)
     {

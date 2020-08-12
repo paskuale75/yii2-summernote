@@ -11,31 +11,42 @@ use yii\widgets\InputWidget;
 
 class Summernote extends InputWidget
 {
-    /** @var array */
-    private $defaultOptions = ['class' => 'form-control'];
+    /**
+     * @var array Default input options
+     */
+    private $_defaultOptions = ['class' => 'form-control'];
 
-    /** @var array */
-    private $defaultClientOptions = [
+    /**
+     * @var array Default client options
+     */
+    private $_defaultClientOptions = [
         'height' => 200,
         'codemirror' => [
             'theme' => 'monokai',
         ],
     ];
 
-    /** @var array */
+    /**
+     * @var array the HTML attributes for the input tag.
+     * @see \yii\helpers\Html::renderTagAttributes() for details on how attributes are being rendered.
+     */
     public $options = [];
-
-    /** @var array */
+    /**
+     * @var array client options (summernote plugin options)
+     */
     public $clientOptions = [];
 
-    /** @var bool Set to true to upload images to an Amazon S3 bucket */
+    /**
+     * @var boolean Set to true to upload images to an Amazon S3 bucket
+     */
     public $uploadToS3 = false;
 
     ######################################################################
     # The following attributes must be set if uploadToS3 is set to true. #
     ######################################################################
 
-    /** @var string An endpoint (URL) of an action to sign the POST request that will upload the image to Amazon.
+    /**
+     * @var string An endpoint (URL) of an action to sign the POST request that will upload the image to Amazon.
      * Check the actions folder for an Action class example.
      * NOTE: You will need to add the Amazon PHP SDK to your project to use this feature!
      * The recommended way to install the PHP SDK is using composer.
@@ -46,24 +57,35 @@ class Summernote extends InputWidget
      */
     public $signEndpoint;
 
-    /** @var string A bucket name */
+    /**
+     * @var string A bucket name
+     */
     public $bucket;
 
-    /** @var string|JsExpression A folder name. S3 doesn't really use folders but it works like so. */
+    /**
+     * @var string|JsExpression A folder name. S3 doesn't really use folders but it works like so.
+     */
     public $folder = '';
 
-    /** @var string|JsExpression A prefix to preppend to the filename. */
+    /**
+     * @var string|JsExpression A prefix to prepend to the filename.
+     */
     public $filenamePrefix = "''";
 
-    /** @var integer The maximum file size allowed in bytes */
+    /**
+     * @var integer The maximum file size allowed in bytes
+     */
     public $maxFileSize;
 
-    /** @var string An expiration date in ISO8601 format (YYYYMMDD'T'HHMMSS'Z'). After this date the POST request will fail. */
+    /**
+     * @var string An expiration date in ISO8601 format (YYYYMMDD'T'HHMMSS'Z'). After this date the POST request will fail.
+     */
     public $expiration;
 
 
     /**
-     * @inheritdoc
+     * {@inheritDoc}
+     * @throws InvalidConfigException
      */
     public function init()
     {
@@ -86,14 +108,15 @@ class Summernote extends InputWidget
             }
         }
 
-        $this->options = array_merge($this->defaultOptions, $this->options);
-        $this->clientOptions = array_merge($this->defaultClientOptions, $this->clientOptions);
+        $this->options = ArrayHelper::merge($this->_defaultOptions, $this->options);
+        $this->clientOptions = ArrayHelper::merge($this->_defaultClientOptions, $this->clientOptions);
 
         parent::init();
     }
 
     /**
-     * @inheritdoc
+     * {@inheritDoc}
+     * @throws \Exception
      */
     public function run()
     {
@@ -103,47 +126,46 @@ class Summernote extends InputWidget
             ? Html::activeTextarea($this->model, $this->attribute, $this->options)
             : Html::textarea($this->name, $this->value, $this->options);
 
-        if (empty($this->folder)) $this->folder = "''";
+        if (empty($this->folder)) {
+            $this->folder = "''";
+        }
 
         # If uploadToS3 is true, create the onImageUpload callback.
         if ($this->uploadToS3) {
-            $this->clientOptions['callbacks']['onImageUpload'] = "function(files) {
-                // get current editable container
-                var editor = $(this);
-                
-                // set properties of the summernote S3 uploader.
-                summernoteS3uploader.signEndpoint = '{$this->signEndpoint}';
-                summernoteS3uploader.bucket = '{$this->bucket}';
-                summernoteS3uploader.folder = {$this->folder};
-                summernoteS3uploader.filenamePrefix = {$this->filenamePrefix};
-                summernoteS3uploader.maxFileSize = '{$this->maxFileSize}';
-                summernoteS3uploader.expiration = '{$this->expiration}';
-                summernoteS3uploader.file = files[0];
-                summernoteS3uploader.editor = editor;
-                summernoteS3uploader.sendImage();
-            }";
+            $js = <<<JS
+function onImageUpload(files) {
+    // get current editable container
+    var editor = jQuery(this);
+    
+    // set properties of the summernote S3 uploader.
+    summernoteS3uploader.signEndpoint = '{$this->signEndpoint}';
+    summernoteS3uploader.bucket = '{$this->bucket}';
+    summernoteS3uploader.folder = {$this->folder};
+    summernoteS3uploader.filenamePrefix = {$this->filenamePrefix};
+    summernoteS3uploader.maxFileSize = '{$this->maxFileSize}';
+    summernoteS3uploader.expiration = '{$this->expiration}';
+    summernoteS3uploader.file = files[0];
+    summernoteS3uploader.editor = editor;
+    summernoteS3uploader.sendImage();
+}
+JS;
+            $this->clientOptions['callbacks']['onImageUpload'] = new JsExpression($js);
         }
 
-        $callbacks = $this->getExtendsParams('callbacks');
-        $buttons = $this->getExtendsParams('buttons');
-        $modules = $this->getExtendsParams('modules');
-
         $clientOptions = empty($this->clientOptions)
-            ? null
+            ? 'null'
             : Json::encode($this->clientOptions);
 
-        $this->getView()->registerJs('
-            var params = ' . $clientOptions . ';'
-            . (empty($callbacks) ? '' : 'params.callbacks = { ' . $callbacks . ' };')
-            . (empty($buttons) ? '' : 'params.buttons = { ' . $buttons . ' };')
-            . (empty($modules) ? '' : 'params.modules = { ' . $modules . ' };')
-            . 'jQuery( "#' . $this->options['id'] . '" ).summernote(params);
-        ');
+        $this->view->registerJs("jQuery('#{$this->options['id']}').summernote($clientOptions);");
     }
 
+    /**
+     * Register required assets
+     * @throws \Exception
+     */
     private function registerAssets()
     {
-        $view = $this->getView();
+        $view = $this->view;
 
         if (ArrayHelper::getValue($this->clientOptions, 'codemirror')) {
             CodemirrorAsset::register($view);
@@ -159,15 +181,4 @@ class Summernote extends InputWidget
             SummernoteLanguageAsset::register($view)->language = $language;
         }
     }
-
-    private function getExtendsParams($param)
-    {
-        $result = '';
-        foreach (ArrayHelper::remove($this->clientOptions, $param, []) as $val => $key) {
-            $result .= (empty($result) ? '' : ',') . $val . ': ' . $key;
-        }
-
-        return $result;
-    }
-
 }

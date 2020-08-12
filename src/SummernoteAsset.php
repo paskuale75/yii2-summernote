@@ -7,11 +7,29 @@ use yii\web\AssetBundle;
 
 class SummernoteAsset extends AssetBundle
 {
-    /** @var string */
+    /**
+     * {@inheritDoc}
+     */
     public $sourcePath = '@bower/summernote/dist';
-    /** @var array */
+
+    /**
+     * {@inheritDoc}
+     */
+    public $css = [
+        'summernote-bs4.css'
+    ];
+    /**
+     * {@inheritDoc}
+     */
+    public $js = [
+        'summernote-bs4.js'
+    ];
+
+    /**
+     * {@inheritDoc}
+     */
     public $depends = [
-        'yii\bootstrap\BootstrapPluginAsset',
+        'yii\bootstrap4\BootstrapPluginAsset',
     ];
 
     /**
