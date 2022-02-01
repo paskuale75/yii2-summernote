@@ -82,6 +82,11 @@ class Summernote extends InputWidget
      */
     public $expiration;
 
+    /**
+     * @var int Bootstrap version to use. Defaults to 4.
+     */
+    public $bsVersion = 4;
+
 
     /**
      * {@inheritDoc}
@@ -106,6 +111,9 @@ class Summernote extends InputWidget
             if (empty($this->expiration)) {
                 throw new InvalidConfigException('The "expiration" attribute must be set because "uploadToS3" is set to true.');
             }
+        }
+        if ($this->bsVersion !== 3 && $this->bsVersion !== 4) {
+            throw new InvalidConfigException('The "bsVersion" attribute must either be 4 or 3.');
         }
 
         $this->options = ArrayHelper::merge($this->_defaultOptions, $this->options);
@@ -171,7 +179,11 @@ JS;
             CodemirrorAsset::register($view);
         }
 
-        SummernoteAsset::register($view);
+        if ($this->bsVersion === 4) {
+            SummernoteAsset::register($view);
+        } elseif ($this->bsVersion === 3) {
+            SummernoteBs3Asset::register($view);
+        }
 
         if ($this->uploadToS3) {
             SummernoteS3Asset::register($view);
