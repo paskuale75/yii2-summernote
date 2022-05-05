@@ -67,6 +67,25 @@ If you need Boostrap 3 compatible version, configure your application like this:
 ]
 ``` 
 
+If you need Bootstrap 5 compatible one, the configuration would look like this:
+```php
+'assetManager' => [
+    'bundles' => [
+        'marqu3s\summernote\SummernoteAsset'   => [
+            'css' => [
+                'summernote-bs5.css'
+            ],
+            'js' => [
+                'summernote-bs5.js'
+            ], 
+            'depends' => [
+                'yii\bootstrap\BootstrapPluginAsset',
+            ]
+        ]
+    ]
+]
+``` 
+
 ### Uploading directly to Amazon S3
 
 To upload images inserted into the editor to S3, you have to configure a few options.
