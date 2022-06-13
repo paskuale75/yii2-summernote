@@ -13,7 +13,7 @@ class SummernoteLanguageAsset extends AssetBundle
     /**
      * {@inheritDoc}
      */
-    public $sourcePath = '@bower/summernote/lang';
+    public $sourcePath = '@bower/summernote/dist/lang';
     /**
      * {@inheritDoc}
      */
