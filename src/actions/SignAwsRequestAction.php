@@ -146,7 +146,7 @@ class SignAwsRequestAction extends Action
     /**
      * @return S3Client
      */
-    protected function getS3Client()
+    protected function getS3Client(): S3Client
     {
         $sharedConfig = [
             'version' => 'latest',
@@ -198,7 +198,7 @@ class SignAwsRequestAction extends Action
     /**
      * @param string $headersStr
      */
-    protected function signRestRequest($headersStr)
+    protected function signRestRequest(string $headersStr)
     {
         $v4 = Yii::$app->request->getBodyParam('v4', Yii::$app->request->getQueryParam('v4', false));
         $version = $v4 ? 4 : 2;
@@ -220,7 +220,7 @@ class SignAwsRequestAction extends Action
      *
      * @return bool
      */
-    protected function isValidRestRequest($headersStr, $version)
+    protected function isValidRestRequest(string $headersStr, int $version): bool
     {
         if ($version == 2) {
             $pattern = "/\/{$this->expectedBucketName}\/.+$/";
@@ -236,7 +236,7 @@ class SignAwsRequestAction extends Action
      * @param string $policyStr
      * @throws \Exception
      */
-    protected function signPolicy($policyStr)
+    protected function signPolicy(string $policyStr)
     {
         $v4 = Yii::$app->request->getBodyParam('v4', Yii::$app->request->getQueryParam('v4', false));
         $policyObj = Json::decode($policyStr, true);
@@ -258,7 +258,7 @@ class SignAwsRequestAction extends Action
      *
      * @return bool
      */
-    protected function isPolicyValid($policy)
+    protected function isPolicyValid(array $policy): bool
     {
         $conditions = ArrayHelper::remove($policy, 'conditions', []);
         $bucket = null;
@@ -279,7 +279,7 @@ class SignAwsRequestAction extends Action
      *
      * @return string
      */
-    protected function sign($stringToSign)
+    protected function sign(string $stringToSign): string
     {
         return base64_encode(hash_hmac('sha1', $stringToSign, $this->clientPrivateKey, true));
     }
@@ -290,7 +290,7 @@ class SignAwsRequestAction extends Action
      * @return array
      * @throws \Exception
      */
-    protected function signV4Policy($policyObj)
+    protected function signV4Policy(array $policyObj): array
     {
         $post = new PostObjectV4(
             $this->getS3Client(),
@@ -315,7 +315,7 @@ class SignAwsRequestAction extends Action
      *
      * @return string
      */
-    protected function signV4RestRequest($rawStringToSign)
+    protected function signV4RestRequest(string $rawStringToSign): string
     {
 
         $pattern = '/.+\\n.+\\n(\\d+)\/(.+)\/s3\/aws4_request\\n(.+)/s';
@@ -340,7 +340,7 @@ class SignAwsRequestAction extends Action
      * @param bool $includeThumbnail
      * @throws ServerErrorHttpException
      */
-    protected function verifyFileInS3($includeThumbnail)
+    protected function verifyFileInS3(bool $includeThumbnail)
     {
         $bucket = Yii::$app->request->getBodyParam('bucket', Yii::$app->request->getQueryParam('bucket'));
         $key = Yii::$app->request->getBodyParam('key', Yii::$app->request->getQueryParam('key'));
@@ -369,9 +369,9 @@ class SignAwsRequestAction extends Action
      * @param string $bucket
      * @param string $key
      *
-     * @return mixed
+     * @return string
      */
-    protected function getTempLink($bucket, $key)
+    protected function getTempLink(string $bucket, string $key): string
     {
         return $this->getS3Client()->getObjectUrl($bucket, $key);
     }
@@ -384,7 +384,7 @@ class SignAwsRequestAction extends Action
      *
      * @return mixed
      */
-    protected function getObjectSize($bucket, $key)
+    protected function getObjectSize(string $bucket, string $key)
     {
         $objInfo = $this->getS3Client()->headObject([
             'Bucket' => $bucket,
@@ -405,7 +405,7 @@ class SignAwsRequestAction extends Action
      * @return boolean
      * @throws \yii\base\InvalidConfigException
      */
-    protected function isFileViewableImage($filename)
+    protected function isFileViewableImage(string $filename): bool
     {
         $mime = FileHelper::getMimeType($filename);
         $viewableMimes = [
@@ -429,7 +429,7 @@ class SignAwsRequestAction extends Action
      * @return boolean
      * @throws \yii\base\InvalidConfigException
      */
-    protected function shouldIncludeThumbnail()
+    protected function shouldIncludeThumbnail(): bool
     {
         $filename = Yii::$app->request->getBodyParam('name', Yii::$app->request->getQueryParam('name'));
         $browserPreviewCapable = Yii::$app->request->getBodyParam(
