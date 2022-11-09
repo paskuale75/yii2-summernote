@@ -39,6 +39,7 @@ use yii\web\ServerErrorHttpException;
  *             'expectedBucketName' => 'BUCKET-NAME',
  *             'expectedHostName' => 'BUCKET-NAME',
  *             'expectedMaxSize' => 'MAX-FILE-SIZE'
+ *             'allowedOrigin' => '*'
  *         ]
  *     ];
  * }
