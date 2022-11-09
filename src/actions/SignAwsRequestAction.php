@@ -35,6 +35,7 @@ use yii\web\ServerErrorHttpException;
  *             'class' => 'common\actions\SignAwsRequestAction',
  *             'clientPrivateKey' => 'AWS-KEY',
  *             'clientPrivateSecret' => 'AWS-SECRET',
+ *             'clientAwsRegion' => 'sa-east-1',
  *             'expectedBucketName' => 'BUCKET-NAME',
  *             'expectedHostName' => 'BUCKET-NAME',
  *             'expectedMaxSize' => 'MAX-FILE-SIZE'
@@ -64,6 +65,7 @@ class SignAwsRequestAction extends Action
 {
     public $clientPrivateKey;
     public $clientPrivateSecret;
+    public $clientAwsRegion;
     public $expectedBucketName;
     public $expectedHostName;
     public $expectedMaxSize;
@@ -140,7 +142,7 @@ class SignAwsRequestAction extends Action
     protected function handleCorsRequest()
     {
         // If you are relying on CORS, you will need to adjust the allowed domain here.
-        Yii::$app->response->headers->set('Access-Control-Allow-Origin', 'https://cartella.basic');
+        Yii::$app->response->headers->set('Access-Control-Allow-Origin', '*');
         //header('Access-Control-Allow-Origin: *');
     }
 
@@ -151,7 +153,7 @@ class SignAwsRequestAction extends Action
     {
         $sharedConfig = [
             'version'   => 'latest',
-            'region'    => 'sa-east-1', //'eu-south-1',
+            'region'    => $this->clientAwsRegion,
             'credentials' => [
                 // User credentials on AWS
                 'key' => $this->clientPrivateKey,
