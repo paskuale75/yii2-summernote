@@ -69,6 +69,7 @@ class SignAwsRequestAction extends Action
     public $expectedBucketName;
     public $expectedHostName;
     public $expectedMaxSize;
+    public $allowedOrigin;
 
     /**
      * Runs the sign action
@@ -142,7 +143,8 @@ class SignAwsRequestAction extends Action
     protected function handleCorsRequest()
     {
         // If you are relying on CORS, you will need to adjust the allowed domain here.
-        Yii::$app->response->headers->set('Access-Control-Allow-Origin', '*');
+        //Yii::$app->response->headers->set('Access-Control-Allow-Origin', '*');
+        Yii::$app->response->headers->set('Access-Control-Allow-Origin', ArrayHelper::getValue($this,'allowedOrigin','*'));
         //header('Access-Control-Allow-Origin: *');
     }
 
