@@ -1,5 +1,5 @@
 {
-    "name": "simialbi/yii2-summernote",
+    "name": "paskuale75/yii2-summernote",
     "description": "Yii2 Summernote widget. Super simple WYSIWYG editor on Bootstrap",
     "type": "yii2-extension",
     "keywords": [
@@ -8,7 +8,7 @@
         "widget",
         "wysiwyg"
     ],
-    "homepage": "https://github.com/simialbi/yii2-summernote",
+    "homepage": "https://github.com/paskuale75/yii2-summernote",
     "time": "2016-01-15",
     "license": "MIT",
     "authors": [
@@ -27,11 +27,16 @@
             "name": "simialbi",
             "email": "simi.albi@outlook.com",
             "role": "Developer"
+        },
+        {
+            "name": "paskuale75",
+            "email": "pellicanipasquale@gmail.com",
+            "role": "Developer"
         }
     ],
     "support": {
-        "issues": "https://github.com/simialbi/yii2-summernote/issues",
-        "source": "https://github.com/simialbi/yii2-summernote"
+        "issues": "https://github.com/paskuale75/yii2-summernote/issues",
+        "source": "https://github.com/paskuale75/yii2-summernote"
     },
     "require": {
         "php": ">=7.3",

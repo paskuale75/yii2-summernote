@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Created by PhpStorm.
  * User: joao
@@ -99,11 +100,11 @@ class SignAwsRequestAction extends Action
             $method = $request->getBodyParam('_method', $request->getQueryParam('_method'));
 
             if ($success) {
-                $this->verifyFileInS3($this->shouldIncludeThumbnail());
+                return $this->verifyFileInS3($this->shouldIncludeThumbnail());
             } elseif ($method) {
-                $this->deleteObject();
+                return $this->deleteObject();
             } else {
-                $this->signRequest();
+                return $this->signRequest();
             }
         }
     }
@@ -139,8 +140,8 @@ class SignAwsRequestAction extends Action
     protected function handleCorsRequest()
     {
         // If you are relying on CORS, you will need to adjust the allowed domain here.
-        Yii::$app->response->headers->set('Access-Control-Allow-Origin', '*');
-        //header('Access-Control-Allow-Origin: http://joao-portal2.riic.local');
+        Yii::$app->response->headers->set('Access-Control-Allow-Origin', 'https://cartella.basic');
+        //header('Access-Control-Allow-Origin: *');
     }
 
     /**
@@ -149,8 +150,8 @@ class SignAwsRequestAction extends Action
     protected function getS3Client(): S3Client
     {
         $sharedConfig = [
-            'version' => 'latest',
-            'region' => 'sa-east-1',
+            'version'   => 'latest',
+            'region'    => 'sa-east-1', //'eu-south-1',
             'credentials' => [
                 // User credentials on AWS
                 'key' => $this->clientPrivateKey,
@@ -189,9 +190,9 @@ class SignAwsRequestAction extends Action
         $jsonContent = Json::encode($contentAsObject);
 
         if (!empty($contentAsObject['headers'])) {
-            $this->signRestRequest($contentAsObject['headers']);
+            return $this->signRestRequest($contentAsObject['headers']);
         } else {
-            $this->signPolicy($jsonContent);
+            return $this->signPolicy($jsonContent);
         }
     }
 
@@ -208,9 +209,9 @@ class SignAwsRequestAction extends Action
             } else {
                 $response = ['signature' => $this->sign($headersStr)];
             }
-            echo Json::encode($response);
+            return ($response);
         } else {
-            echo Json::encode(['invalid' => true]);
+            return (['invalid' => true]);
         }
     }
 
@@ -247,9 +248,9 @@ class SignAwsRequestAction extends Action
             } else {
                 $response = ['policy' => $encodedPolicy, 'signature' => $this->sign($encodedPolicy)];
             }
-            echo Json::encode($response);
+            return ($response);
         } else {
-            echo Json::encode(['invalid' => true]);
+            return (['invalid' => true]);
         }
     }
 
@@ -359,7 +360,7 @@ class SignAwsRequestAction extends Action
             if ($includeThumbnail) {
                 $response['thumbnailUrl'] = $link;
             }
-            echo Json::encode($response);
+            return ($response);
         }
     }
 
